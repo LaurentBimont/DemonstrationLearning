@@ -1,24 +1,28 @@
 import numpy as np
 import argparse
-from 
+import matplotlib.pyplot as plt
+from trainer import Trainer
+import cv2
 
-def grasping_rectangle():
+model = Trainer(load=True, snapshot_file='reference')
+im = np.zeros((1, 224, 224, 3), np.float32)
+im[:, 70:190, 100:105, :] = 1
+im[:, 70:80, 80:125, :] = 1
+model.forward(im)
+out = model.prediction_viz(model.output_prob, im)
 
 
+out = cv2.fillConvexPoly(out, np.array([np.array([1, 5]), np.array([4, 5]), np.array([4, 10])]), color=2)
 
+plt.imshow(out)
+plt.show()
 
+def grasping_rectangle(output):
+    x1, x2, y1, y2, theta = 2, 5, 6, 10, 20
+    mask = np.zeros(output.shape)
 
-
-
+    pass
 
 
 if __name__=="__main__":
-    parser = argparse.ArgumentParser(description='Process some integers.')
-    parser.add_argument('integers', metavar='N', type=int, nargs='+',
-                        help='an integer for the accumulator')
-    parser.add_argument('--sum', dest='accumulate', action='store_const',
-                        const=sum, default=max,
-                        help='sum the integers (default: find the max)')
-
-    args = parser.parse_args()
-    print(args.accumulate(args.integers))
+    im = model.output_prob

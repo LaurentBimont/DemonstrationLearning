@@ -19,7 +19,7 @@ class DensenetFeatModel(tf.keras.Model):
         super(DensenetFeatModel, self).__init__()
         baseModel = tf.keras.applications.densenet.DenseNet121(weights='imagenet')
         self.model = tf.keras.Model(inputs=baseModel.input, outputs=baseModel.get_layer(
-            "conv5_block16_concat").output)
+            "conv4_block16_concat").output)
 
     def call(self, inputs):
         # inputs = tf.transpose(inputs,(0,3,2,1))
@@ -60,11 +60,12 @@ class GraspNet(BaseDeepModel):
         self.conv0 = tf.keras.layers.Convolution2D(3, kernel_size=1, strides=1, activation=tf.nn.relu,
                                             use_bias=False, padding='valid', name="grasp-conv0", trainable=True)
         self.bn1 = tf.keras.layers.BatchNormalization(name="grasp-b1")
-        self.conv1 = tf.keras.layers.Convolution2D (3, kernel_size=1, strides=1,    activation=tf.nn.relu,
+        self.conv1 = tf.keras.layers.Convolution2D (3, kernel_size=1, strides=1, activation=tf.nn.relu,
                                             use_bias=False, padding='valid', name="grasp-conv1", trainable=True)
         self.bn2 = tf.keras.layers.BatchNormalization(name="grasp-b2")
 
     def call(self, inputs, bufferize=False, step_id=-1):
+        # print('Entrée du réseau seondaire', inputs.shape)
         x = self.bn0(inputs)
         x = self.conv0(x)
         x = self.bn1(x)
@@ -72,6 +73,7 @@ class GraspNet(BaseDeepModel):
         x = (x[:, :, :, 0]+x[:, :, :, 1]+x[:, :, :, 2])/3.
         x = tf.reshape(x, (*x.shape, 1))
         x = self.bn2(x)
+        print('Sortie du réseau secondaire ', x.shape)
         return x
 
 

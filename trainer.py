@@ -38,10 +38,10 @@ class Trainer(object):
 
         # Frequency
         self.viz_frequency = 5
-        self.saving_frequency = 20
+        self.saving_frequency = 50
 
         # Initiate logger
-        # self.create_log()
+        self.create_log()
 
         if savetosnapshot:
             checkpoint_directory = "checkpoint"
@@ -114,7 +114,8 @@ class Trainer(object):
             img_tensorboard = self.draw_scatter(img_tensorboard)
             self.log_fig('viz', img_tensorboard)
             self.log_img('input', self.image)
-            tensorboard_output_prob = self.output_viz(self.output_prob)
+            # inutile pour le moment
+            # tensorboard_output_prob = self.output_viz(self.output_prob)
 
             self.log_scalar('loss value_dem', self.loss_value)
             self.log_img('label', label)
@@ -352,17 +353,16 @@ if __name__=='__main__':
     im[:, 70:80, 80:125, :] = 1
     best_pix = [125, 103]
 
-
     # Test de Tensorboard
 
-    Network.create_log()
+    # A REMETTRE SI CA MERDE
+    # Network.create_log()
     previous_qmap = Network.forward(im)
-
 
     label, label_weights = Network.compute_labels(1.8, best_pix)
     dataset = da.OnlineAugmentation().generate_batch(im, label, label_weights, viz=False, augmentation_factor=6)
     im_o, label_o, label_wo = dataset['im'], dataset['label'], dataset['label_weights']
-    epoch_size = 10
+    epoch_size = 4
     batch_size = 3
     for epoch in range(epoch_size):
         for batch in range(len(dataset['im']) // batch_size):
@@ -381,7 +381,6 @@ if __name__=='__main__':
             Network.main_batches(batch_im, batch_lab, batch_weights)
 
     trained_qmap = Network.forward(im)
-
     ntrained_qmap = trained_qmap.numpy()
 
     # Creation of a rotated view
@@ -394,42 +393,17 @@ if __name__=='__main__':
 
     # New Q-map vizualisation
     plt.subplot(1, 3, 3)
-    new_qmap = tf.image.resize_images(new_qmap, (224, 224))
-    new_qmap = tf.reshape(new_qmap, (224, 224))
-    rescale_new_qmap = (new_qmap.numpy() - np.min(new_qmap.numpy()))/(np.max(new_qmap.numpy())-np.min(new_qmap.numpy()))
-    img = np.zeros((224, 224, 3))
-
-    img[:, :, 0] = im2[0, :, :, 0]
-    img[:, :, 1] = rescale_new_qmap
-    img = img/np.max(img)
-
+    img = Network.prediction_viz(new_qmap, im2)
     plt.imshow(img)
 
     # First Q-map vizualisation
     plt.subplot(1, 3, 1)
-    previous_qmap = tf.image.resize_images(previous_qmap, (224, 224))
-    previous_qmap = tf.reshape(previous_qmap, (224, 224))
-    rescale_previous_qmap = (previous_qmap.numpy() - np.min(previous_qmap.numpy())) / (
-                np.max(previous_qmap.numpy()) - np.min(previous_qmap.numpy()))
-
-    img = np.zeros((224, 224, 3))
-    img[:, :, 0] = im[0, :, :, 0]
-    img[:, :, 1] = rescale_previous_qmap
-    img = img / np.max(img)
+    img = Network.prediction_viz(previous_qmap, im)
     plt.imshow(img)
 
     # First Q-map vizualisation after training
     plt.subplot(1, 3, 2)
-    trained_qmap = tf.image.resize_images(trained_qmap, (Network.width, Network.height))
-    trained_qmap = tf.image.resize_images(trained_qmap, (224, 224))
-    trained_qmap = tf.reshape(trained_qmap, (224, 224))
-
-    rescale_trained_qmap = (trained_qmap.numpy() - np.min(trained_qmap.numpy())) / (
-            np.max(trained_qmap.numpy()) - np.min(trained_qmap.numpy()))
-    img = np.zeros((224, 224, 3))
-    img[:, :, 0] = im[0, :, :, 0]
-    img[:, :, 1] = rescale_trained_qmap
-    img = img / np.max(img)
+    img = Network.prediction_viz(trained_qmap, im)
     plt.imshow(img)
-    plt.show()
 
+    plt.show()

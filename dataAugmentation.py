@@ -9,7 +9,7 @@ if __name__=="__main__":
     tf.enable_eager_execution(config)
 
 #Test
-from trainer import Trainer
+#from trainer import Trainer
 
 
 class OnlineAugmentation(object):
