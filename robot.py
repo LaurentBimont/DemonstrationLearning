@@ -1,7 +1,7 @@
-from iiwaPy.sunrisePy import sunrisePy
+from iiwaController.sunrisePy import sunrisePy
 import time
 import numpy as np
-from gripper import RobotiqGripper
+from iiwaaControler.gripperRobotiq import RobotiqGripper
 from math import pi
 
 class Robot:
@@ -44,9 +44,9 @@ class Robot:
         grasp = [pos[0], pos[1], pos[2], ang, 0, -np.pi]
         self.iiwa.movePTPLineEEF(grasp, speed)
         self.grip.closeGripper()
-
         print(self.grip.isObjectDetected())
         self.grip.openGripper()
+
 
 if __name__=="__main__":
     try:
@@ -54,6 +54,6 @@ if __name__=="__main__":
         pos_grasp = [4.96389713e+02, 1.14319867e+02, 3.75044594e+02]
         ang_grasp = -np.pi
         rob.grasp(pos_grasp, ang_grasp)
+        rob.iiwa.close()
     except:
         pass
-    rob.iiwa.close()
