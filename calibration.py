@@ -59,9 +59,9 @@ if checkerboard_found:
 
 
 if True:
-    P1_robot, P2_robot, P3_robot = np.array([417.7, 143.15, 136.22]), \
-                                   np.array([405.81, 229.73, 134.35]), \
-                                   np.array([559.89, 117.24, 135.45])
+    P1_robot, P2_robot, P3_robot = np.array([417.7, 143.15, 136.22]),\
+                                   np.array([405.81, 229.73, 134.35]),\
+                                   np.array([559.89, 117.24, 135.45])       # Position des points dans le repère robot
     P_robot = np.array([np.transpose(P1_robot), np.transpose(P2_robot), np.transpose(P3_robot)])
 
     x_tcp, y_tcp, z_tcp, A_tcp, B_tcp, C_tcp = 10, 20, 5, 0, 0, 3.14
@@ -104,10 +104,10 @@ def error(R):
     error = camera1 - P_robot
     error = np.sum(np.multiply(error, error))
     rmse = np.sqrt(error / P_robot.shape[0])
-    print(rmse)
-    return rmse
+    print(error)
+    return error
 
-arg_opt = [1,1,1,2,2,2,3,3,3, 5, 4, 3]
+arg_opt = np.array([1, 1, 1, 2, 2, 2, 3, 3, 3, 5, 4, 3])
 
 optim_result = optimize.minimize(error, arg_opt, method='Nelder-Mead')
 result = optim_result.x
@@ -120,16 +120,18 @@ t_optim = np.array([[result[9]],
 
 print(R_optim, t_optim)
 
-
 tm2r, Rm2r = -Tbase_main, np.transpose(Rbase_main)
 camera1 = np.dot(R_optim, camera) + t_optim
 camera1 = np.dot(Rm2r, camera1) + tm2r
 
-print('Bref : ', camera1)
-print('Puis : ', P_robot)
+print('Résultat : ', camera1)
+print('Réalité : ', P_robot)
 error = camera1 - P_robot
 
 print(error)
 
 error = np.sum(np.multiply(error, error))
-print(error)
+print('erreur : ', error)
+
+np.save('R_camera_poignet.npy', R_optim)
+np.save('T_camera_poignet.npy', t_optim)
