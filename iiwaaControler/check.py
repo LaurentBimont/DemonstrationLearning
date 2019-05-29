@@ -15,3 +15,17 @@ def check_non_zero(custom_msg, val):
     if val==0:
         error_msg="{} shall not be equal to zero".format(custom_msg)
         raise ValueError(error_msg)
+
+
+def checkAcknowledgment(msg):
+    ak="done"
+    nak="nak"
+    print(msg)
+    if msg=="":
+        return False
+    if (msg==nak):
+        return False
+    if msg==ak:
+        return True
+    else:
+        return False

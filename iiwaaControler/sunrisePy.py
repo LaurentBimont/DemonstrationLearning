@@ -4,15 +4,16 @@ from iiwaaControler.Setters import Setters
 from iiwaaControler.RealTime import RealTime
 from iiwaaControler.Senders import Senders
 from iiwaaControler.PTP import PTP
+from iiwaaControler.check import check_size, checkAcknowledgment
 
 class sunrisePy:
-    getters=0
-    realtime=0
-    gnerealPorpuse=0
+    getters = 0
+    realtime = 0
+    gnerealPorpuse = 0
     
-    def __init__(self,ip):
+    def __init__(self, ip):
         port=30001
-        self.soc=mySock((ip,port))
+        self.soc=mySock((ip, port))
         self.set=Setters(self.soc)
         self.get=Getters(self.soc)
         self.sender=Senders(self.soc)
@@ -25,7 +26,26 @@ class sunrisePy:
     def send(self, data):
         self.soc.send(data)
         self.soc.receive()
-# PTP motion
+
+    def __createCommand(self, name, data):
+        command_list = [name] + list(map(str, data)) + [""]
+        command = "_".join(command_list).encode("ascii")
+        return command
+
+    def __blockUntilAcknowledgment(self):
+        while (True):
+            msg = self.mysoc.receive()
+            if (checkAcknowledgment(msg)):
+                break
+
+    def attachToolToFlange(self, ts):
+        check_size(6, "Flange frame", ts)
+
+        command = self.__createCommand("TFtrans", ts)
+        msg = self.send(command)
+        print(msg)
+        checkAcknowledgment(msg)
+    # PTP motion
     """
     Joint space motion
     """
@@ -162,11 +182,3 @@ class sunrisePy:
         
     def setPin12On(self):
         self.set.setPin1On()
-    
-        
-        
-        
-        
-        
-              
-

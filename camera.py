@@ -77,8 +77,21 @@ class RealCamera:
 
         return self.depth_image, self.color_image
 
-    def transform_robot(self):
-        pass
+    def transform_3D(self, u, v):
+        '''
+        input : Depthmap
+        :return: return the view in 3D space
+        '''
+        d = self.depth_image[u][v]
+        depth_scale = self.depth_scale
+        fx, fy, Cx, Cy = self.intr.fx, self.intr.fy, self.intr.ppx, self.intr.ppy
+
+        print(d, d/depth_scale)
+
+        z = d / depth_scale
+        x = (u - Cy) * z / fy
+        y = (v - Cx) * z / fx
+        return np.array([[x], [y], [z]])
 
     def erase_background(self):
         pass
