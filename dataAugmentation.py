@@ -74,7 +74,7 @@ class OnlineAugmentation(object):
         '''
         self.create_batch(im, label, label_weights)
         rotation = tf.contrib.image.rotate(self.batch, angles=angle)
-        if self.assert_label(rotation[1]):
+        if self.assert_consistency(rotation):
             self.add_im(rotation)
 
         # To be deleted
@@ -92,7 +92,7 @@ class OnlineAugmentation(object):
         self.create_batch(im, label, label_weights)
         x = tf.random_crop(self.batch, size=[3, zooming, zooming, 3], seed=self.seed)
         crop = tf.image.resize_images(x, size=self.original_size)
-        if self.assert_label(crop[1]):
+        if self.assert_consistency(crop):
             self.add_im(crop)
 
         # To be deleted
@@ -117,20 +117,20 @@ class OnlineAugmentation(object):
                                          width + pad_right + pad_left)
         # pad_to_bounding_box(image, offset_height, offset_width, target_height, target_width
         translate = tf.image.crop_to_bounding_box(x, pad_bottom, pad_right, height, width)
-        if self.assert_label(translate[1]):
+        if self.assert_consistency(translate):
             self.add_im(translate)
 
         # To be deleted
         return translate[0], translate[1], translate[2]
 
-    def assert_label(self, label):
+    def assert_consistency(self, label):
         '''Assert if a label image still contain the demonstrating grasping point
         :param label label: label(numpy (224x224x3))
 
         :return: True if a valid grasping point is still in the image
                  False otherwise
         '''
-        if np.sum(label.numpy()) > 5:
+        if np.sum(label[0].numpy()) > 5 and np.sum(label[1].numpy()) > 5:
             return True
         return False
 
@@ -149,18 +149,18 @@ class OnlineAugmentation(object):
             print(1)
             ima, lab, lab_w = self.crop(im, label, label_weights, zooming=np.random.randint(100, 200))
 
-            if self.assert_label(lab):
+            if self.assert_consistency([ima, lab]):
                 for j in range(augmentation_factor):
                     ima, lab, lab_w = self.translate(ima, lab, lab_w,
                                                      pad_top=np.random.randint(0, 50),
                                                      pad_left=np.random.randint(0, 50),
                                                      pad_bottom=np.random.randint(0, 50),
                                                      pad_right=np.random.randint(0, 50))
-                    if self.assert_label(lab):
+                    if self.assert_consistency([ima, lab]):
                         for k in range(augmentation_factor):
                             ima, lab, lab_w = self.rotate(ima, lab, lab_w, angle=np.random.rand()*0.785)
                             if viz:
-                                if self.assert_label(lab):
+                                if self.assert_consistency([ima, lab]):
 
                                     if h < 10 and k == 2:
                                         plt.figure(1)
@@ -170,7 +170,7 @@ class OnlineAugmentation(object):
                                         plt.subplot(3, 3, h)
                                         plt.imshow(lab.numpy())
                                         h += 1
-                            if self.assert_label(lab):
+                            if self.assert_consistency([ima, lab]):
                                 self.flip(ima, lab, lab_w)
         if viz:
             plt.show()

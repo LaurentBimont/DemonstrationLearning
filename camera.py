@@ -109,7 +109,7 @@ class RealCamera:
 
 if __name__=='__main__':
     Cam = RealCamera()
-    Cam.start_pipe(usb3=False)
+    Cam.start_pipe(usb3=True)
     Cam.get_intrinsic()
     Cam.get_frame()
     Cam.stop_pipe()

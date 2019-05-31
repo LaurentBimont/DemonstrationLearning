@@ -37,7 +37,7 @@ class Trainer(object):
         # self.create_log()
 
         # Frequency
-        self.viz_frequency = 5
+        self.viz_frequency = 100
         self.saving_frequency = 50
 
         # Initiate logger
@@ -59,8 +59,8 @@ class Trainer(object):
         ###### A changer par une fonction adaptée au demonstration learning ######
         # self.loss = func.partial(tf.losses.huber_loss)                  # Huber loss
         # self.loss = func.partial(tf.losses.sigmoid_cross_entropy)
-        self.loss = func.partial(tf.losses.mean_pairwise_squared_error)
-
+        # self.loss = func.partial(tf.losses.mean_pairwise_squared_error)
+        self.loss = func.partial(tf.losses.huber_loss)
         ######                     Demonstration                            ######
         self.best_idx = [125, 103]
 
@@ -79,6 +79,7 @@ class Trainer(object):
         # Pass input data through model
         self.output_prob = self.myModel(input)
         self.batch, self.width, self.height = self.output_prob.shape[0], self.output_prob.shape[1], self.output_prob.shape[2]
+        print('Output : ', self.width, self.height)
         # Return Q-map
         return self.output_prob
 
@@ -99,30 +100,49 @@ class Trainer(object):
     def compute_loss_dem(self, label, label_w, viz=False):
         expected_reward, action_reward = self.action.compute_reward(self.action.grasp, self.future_reward)
         if viz:
+            plt.subplot()
             plt.imshow(label[0, :, :, :])
             plt.show()
 
         label, label_weights = self.reduced_label(label, label_w)
         #self.output_prob = tf.reshape(self.output_prob, (self.batch, self.width, self.height, 1))
 
+        print('Different Loss Values \n', self.loss(label, self.output_prob))
+
         self.loss_value = self.loss(label, self.output_prob)
 
         # Tensorboard ouputs
         if (tf.train.get_global_step() is not None) and (tf.train.get_global_step().numpy()%self.viz_frequency == 0):
 
-            img_tensorboard = self.prediction_viz(self.output_prob, self.image)
-            img_tensorboard = self.draw_scatter(img_tensorboard)
-            self.log_fig('viz', img_tensorboard)
+            ##### Visualisation sortie de réseaux
+            # plt.subplot(1, 2, 1)
+            # plt.imshow(label[0, :, :, 0], vmin=0, vmax=1)
+            # plt.subplot(1, 2, 2)
+            # plt.imshow(self.output_prob[0, :, :, 0], vmin=0, vmax=1)
+            # plt.show()
+
+            img_tensorboard = self.prediction_viz(3*self.output_prob, self.image)
+            img_tensorboard_target = self.prediction_viz(label.numpy(), self.image)
+            #img_tensorboard_target_plot = self.draw_scatter(img_tensorboard_target)
+            #self.log_fig('viz', img_tensorboard_plot)
+            #self.log_fig('vizage', img_tensorboard_target_plot)
+
+            # plt.subplot(1, 2, 1)
+            # plt.imshow(img_tensorboard)
+            # plt.subplot(1, 2, 2)
+            # plt.imshow(img_tensorboard_target)
+            # plt.show()
+
+            subplot_viz = self.draw_scatter_subplot(img_tensorboard, img_tensorboard_target)
+            self.log_fig('subplot_viz', subplot_viz)
             self.log_img('input', self.image)
             # inutile pour le moment
             # tensorboard_output_prob = self.output_viz(self.output_prob)
 
             self.log_scalar('loss value_dem', self.loss_value)
-            self.log_img('label', label)
-            self.log_img('label_weight', label_weights)
 
             output_prob_plt = self.draw_scatter(self.output_prob[0])
-            self.log_fig('output_prob_plt', output_prob_plt)
+            # self.log_fig('output_prob_plt', output_prob_plt)
 
             # Save a snapshot of the model
 
@@ -137,48 +157,6 @@ class Trainer(object):
 
         return self.loss_value
 
-    def max_primitive_pixel(self, prediction, viz=False):
-        '''Locate the max value-pixel of the image
-        Locate the highest pixel of a Q-map
-        :param prediction: Q map
-        :return: max_primitive_pixel_idx (tuple) : pixel of the highest Q value
-                 max_primitive_pixel_value : value of the highest Q-value
-        '''
-        # Transform the Q map tensor into a 2-size numpy array
-        numpy_predictions = prediction.numpy()[0, :, :, 0]
-        if viz:
-            result = tf.reshape(prediction, (prediction.shape[1], prediction.shape[2]))
-            plt.subplot(1, 2, 1)
-            plt.imshow(result)
-            plt.subplot(1, 2, 2)
-            plt.imshow(numpy_predictions)
-            plt.show()
-        # Get the highest pixel
-        max_primitive_pixel_idx = np.unravel_index(np.argmax(numpy_predictions),
-                                                   numpy_predictions.shape)
-        # Get the highest score
-        max_primitive_pixel_value = numpy_predictions[max_primitive_pixel_idx]
-        print('Grasping confidence scores: {}, {}'.format(max_primitive_pixel_value, max_primitive_pixel_idx))
-        return max_primitive_pixel_idx, max_primitive_pixel_value
-
-    def get_best_predicted_primitive(self):
-        '''
-        :param output_prob: Q-map
-        :return: best_idx (tuple): best idx in raw-Q-map
-                 best_value : highest value in raw Q-map
-                 image_idx (tuple): best pixels in image format (224x224) Q-map
-                 image_value : best value in image format (224x224) Q-map
-        '''
-
-        # Best Idx in image frameadients(
-        prediction = tf.image.resize_images(self.output_prob, (224, 224))
-        image_idx, image_value = self.max_primitive_pixel(prediction)
-        # Best Idx in network output frame
-        best_idx, best_value = self.max_primitive_pixel(self.output_prob)
-
-        self.best_idx, self.future_reward = best_idx, best_value
-        return best_idx, best_value, image_idx, image_value
-
     def compute_labels(self, label_value, best_pix_ind, viz=False):
         '''Create the targeted Q-map
         :param label_value: Reward of the action
@@ -191,6 +169,7 @@ class Trainer(object):
         area = 224//(self.width*2)
         print('L\'aire est la suivante :', area)
         label[best_pix_ind[0]-area:best_pix_ind[0]+area, best_pix_ind[1]-area:best_pix_ind[1]+area, :] = label_value
+        print(label_value)
         label_weights = np.zeros(label.shape, dtype=np.float32)
         label_weights[best_pix_ind[0]-area:best_pix_ind[0]+area, best_pix_ind[1]-area:best_pix_ind[1]+area, :] = 1
 
@@ -291,13 +270,33 @@ class Trainer(object):
         self.logger = tf.contrib.summary.create_file_writer(logdir='logs')
 
     def prediction_viz(self, qmap, im):
-        qmap = qmap[0,:,:,:]
+        qmap1 = qmap
+        qmap = qmap[0, :, :, :]
         qmap = tf.image.resize_images(qmap, (self.width, self.height))
-        qmap = tf.image.resize_images(qmap, (224, 224))
+        qmap = tf.image.resize_images(qmap, (224, 224), method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
         qmap = tf.reshape(qmap, (224, 224))
 
-        rescale_qmap = (qmap.numpy() - np.min(qmap.numpy())) / (
-                np.max(qmap.numpy()) - np.min(qmap.numpy()))
+        # if np.max(qmap.numpy()) - np.min(qmap.numpy()) == 0.0:
+        #     print(im.shape)
+        #     print(qmap1.shape)
+        #     plt.subplot(2,3,1)
+        #     plt.imshow(im[0, :, :, 0])
+        #     plt.subplot(2, 3, 2)
+        #     plt.imshow(im[1, :, :, 0])
+        #     plt.subplot(2, 3, 3)
+        #     plt.imshow(im[2, :, :, 0])
+        #     plt.subplot(2, 3, 4)
+        #     plt.imshow(qmap1[0, :, :, 0])
+        #     plt.subplot(2, 3, 5)
+        #     plt.imshow(qmap1[1, :, :, 0])
+        #     plt.subplot(2, 3, 6)
+        #     plt.imshow(qmap1[2, :, :, 0])
+        #     plt.show()
+
+        # rescale_qmap = (qmap.numpy() - np.min(qmap.numpy())) / (
+        #         np.max(qmap.numpy()) - np.min(qmap.numpy()))
+
+        rescale_qmap = qmap
         img = np.zeros((224, 224, 3))
         img[:, :, 0] = im[0, :, :, 0]
         img[:, :, 1] = rescale_qmap
@@ -313,6 +312,24 @@ class Trainer(object):
             ax.imshow(data[:, :, :])
         except:
             ax.imshow(data[:, :, 0])
+        fig.tight_layout()
+        return fig
+
+    @tfmpl.figure_tensor
+    def draw_scatter_subplot(self, data1, data2):
+        '''Draw scatter plots. One for each color.'''
+
+        fig = tfmpl.create_figure()
+        ax = fig.add_subplot(122)
+
+        ax.imshow(data1[:, :, :])
+
+
+        ax = fig.add_subplot(121)
+        try:
+            ax.imshow(data2[:, :, :])
+        except:
+            ax.imshow(data2[:, :, 0])
         fig.tight_layout()
         return fig
 
@@ -359,10 +376,10 @@ if __name__=='__main__':
     # Network.create_log()
     previous_qmap = Network.forward(im)
 
-    label, label_weights = Network.compute_labels(1.8, best_pix)
+    label, label_weights = Network.compute_labels(1, best_pix)
     dataset = da.OnlineAugmentation().generate_batch(im, label, label_weights, viz=False, augmentation_factor=6)
     im_o, label_o, label_wo = dataset['im'], dataset['label'], dataset['label_weights']
-    epoch_size = 4
+    epoch_size = 2
     batch_size = 3
     for epoch in range(epoch_size):
         for batch in range(len(dataset['im']) // batch_size):
@@ -393,7 +410,7 @@ if __name__=='__main__':
 
     # New Q-map vizualisation
     plt.subplot(1, 3, 3)
-    img = Network.prediction_viz(new_qmap, im2)
+    img = Network.prediction_viz(3*new_qmap, im2)
     plt.imshow(img)
 
     # First Q-map vizualisation
@@ -403,7 +420,7 @@ if __name__=='__main__':
 
     # First Q-map vizualisation after training
     plt.subplot(1, 3, 2)
-    img = Network.prediction_viz(trained_qmap, im)
+    img = Network.prediction_viz(3*trained_qmap, im)
     plt.imshow(img)
 
     plt.show()
