@@ -27,7 +27,7 @@ class Trainer(object):
         self.action = RM.RewardManager()
         self.width, self.height = 0, 0
         self.best_idx, self.future_reward = [0, 0], 0
-        self.scale_factor = 2
+        self.scale_factor = 3
         self.output_prob = 0
         self.loss_value = 0
         self.iteration = 0
@@ -44,7 +44,7 @@ class Trainer(object):
         self.create_log()
 
         if savetosnapshot:
-            checkpoint_directory = "checkpoint"
+            checkpoint_directory = "checkpoint_1"
             self.snapshot_file = os.path.join(checkpoint_directory, snapshot_file)
             self.checkpoint = tf.train.Checkpoint(optimizer=self.optimizer, model=self.myModel,
                                                   optimizer_step=tf.train.get_or_create_global_step())
@@ -107,7 +107,6 @@ class Trainer(object):
         label, label_weights = self.reduced_label(label, label_w)
         #self.output_prob = tf.reshape(self.output_prob, (self.batch, self.width, self.height, 1))
 
-        print('Different Loss Values \n', self.loss(label, self.output_prob))
 
         self.loss_value = self.loss(label, self.output_prob)
 
@@ -160,19 +159,19 @@ class Trainer(object):
     def compute_labels(self, label_value, best_pix_ind, viz=False):
         '''Create the targeted Q-map
         :param label_value: Reward of the action
-        :param best_pix_ind: Pixel where to perform the action
+        :param best_pix_ind: (Rectangle Parameters : x(colonne), y(ligne), angle(en degré), ecartement(en pixel)) Pixel where to perform the action
         :return: label : an 224x224 array where best pix is at future reward value
                  label_weights : a 224x224 where best pix is at one
         '''
         # Compute labels
-        label = np.zeros((224, 224, 3), dtype=np.float32)
-        area = 224//(self.width*2)
-        print('L\'aire est la suivante :', area)
-        label[best_pix_ind[0]-area:best_pix_ind[0]+area, best_pix_ind[1]-area:best_pix_ind[1]+area, :] = label_value
-        print(label_value)
-        label_weights = np.zeros(label.shape, dtype=np.float32)
-        label_weights[best_pix_ind[0]-area:best_pix_ind[0]+area, best_pix_ind[1]-area:best_pix_ind[1]+area, :] = 1
+        x, y, angle, e, lp = best_pix_ind[0], best_pix_ind[1], best_pix_ind[2], best_pix_ind[3], best_pix_ind[4]
+        rect = div.draw_rectangle(e, angle, x, y, lp)
 
+        label = np.zeros((224, 224, 3), dtype=np.float32)
+        cv2.fillConvexPoly(label, rect, color=1)
+        label *= label_value
+
+        label_weights = np.ones((224, 224, 3), dtype=np.float32)
         if viz:
             plt.subplot(1, 3, 1)
             self.image = np.reshape(self.image, (self.image.shape[1], self.image.shape[2], 3))
@@ -211,19 +210,16 @@ class Trainer(object):
             plt.show()
         return label, label_weights
 
-
     def output_viz(self, output_prob):
         output_viz = np.clip(output_prob, 0, 1)
         output_viz = cv2.applyColorMap((output_viz*255).astype(np.uint8), cv2.COLORMAP_JET)
         output_viz = cv2.cvtColor(output_viz, cv2.COLOR_BGR2RGB)
-        return(np.array([output_viz]))
-
+        return np.array([output_viz])
 
     def vizualisation(self, img, idx):
         prediction = cv2.circle(img[0], (int(idx[1]), int(idx[0])), 7, (255, 255, 255), 2)
         plt.imshow(prediction)
         plt.show()
-
 
     def main(self, input):
         self.future_reward = 1
@@ -233,7 +229,6 @@ class Trainer(object):
             grad = tape.gradient(self.loss_value, self.myModel.trainable_variables)
             self.optimizer.apply_gradients(zip(grad, self.myModel.trainable_variables),
                                            global_step=tf.train.get_or_create_global_step())
-
 
     def main_augmentation(self, dataset):
         ima, val, val_w = dataset['im'], dataset['label'], dataset['label_weights']
@@ -247,7 +242,6 @@ class Trainer(object):
                 grad = tape.gradient(self.loss_value, self.myModel.trainable_variables)
                 self.optimizer.apply_gradients(zip(grad, self.myModel.trainable_variables),
                                                global_step=tf.train.get_or_create_global_step())
-
 
     def save_model(self):
         print("Saving model to {}".format(self.snapshot_file))
@@ -368,8 +362,20 @@ if __name__=='__main__':
     im = np.zeros((1, 224, 224, 3), np.float32)
     im[:, 70:190, 100:105, :] = 1
     im[:, 70:80, 80:125, :] = 1
-    best_pix = [125, 103]
 
+    best_pix = [103, 125, 0, 40, 10]
+    best_pix = [83, 76, 0, 20, 10]         # x, y, angle, e, lp
+
+    ### Viz Demonstration ###
+    viz_demo = True
+    if viz_demo:
+        x, y, angle, e, lp = best_pix[0], best_pix[1], best_pix[2], best_pix[3], best_pix[4]
+        rect = div.draw_rectangle(e, angle, x, y, lp)
+        im_test = np.zeros((224, 224, 3))
+        im_test[:, :, 1] = im[:, :, :, 0]
+        demo = cv2.fillConvexPoly(im_test, rect, color=3)
+        plt.imshow(demo)
+        plt.show()
     # Test de Tensorboard
 
     # A REMETTRE SI CA MERDE
@@ -380,7 +386,7 @@ if __name__=='__main__':
     dataset = da.OnlineAugmentation().generate_batch(im, label, label_weights, viz=False, augmentation_factor=6)
     im_o, label_o, label_wo = dataset['im'], dataset['label'], dataset['label_weights']
     epoch_size = 2
-    batch_size = 3
+    batch_size = 1
     for epoch in range(epoch_size):
         for batch in range(len(dataset['im']) // batch_size):
             print('Epoch {}/{}, Batch {}/{}'.format(epoch + 1, epoch_size, batch + 1,

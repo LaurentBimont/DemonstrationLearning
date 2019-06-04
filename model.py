@@ -83,7 +83,6 @@ class GraspNet(BaseDeepModel):
         # for i in range(x.shape[0]):
         #     x[i, :, :, :] = tf.div(tf.subtract(x[i, :, :, :], tf.reduce_min(x[i, :, :, :])),
         #                            tf.subtract(tf.reduce_max(x[i, :, :, :]), tf.reduce_min(x[i, :, :, :])))
-        print('Shape', x.shape)
         #x = tf.div(tf.subtract(x, tf.reduce_min(x)), tf.subtract(tf.reduce_max(x), tf.reduce_min(x)))
         return x
 

@@ -1,11 +1,16 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import divers as div
+# Python Imaging Library imports
+import cv2
 
-def aire_rectangle2(**kwargs):  # les arguments passes en parametre sont paquetes dans kwargs qui se comporte comme un dictionnaire
-    if len(kwargs) == 2:
-        result = 1
-        for key, value in kwargs.items():
-            result *=value
-        return result
-    else:
-        print('Merci de stipuler deux parametres')
-
-aire_rectangle2({'ff':[1,2], 'fs':[4,4]})
+best_pix_ind = [50, 100, 0, 70]    # x, y, angle, écartement (unité ??)
+x, y, angle, e = best_pix_ind[0], best_pix_ind[1], best_pix_ind[2], best_pix_ind[3]
+label_value = 1
+rect = div.draw_rectangle([e, angle], x, y, 30)
+print([angle, e], x, y)
+label = np.zeros((224, 224, 3), dtype=np.float32)
+cv2.fillConvexPoly(label, rect, color=1)
+label *= label_value
+plt.imshow(label)
+plt.show()
